@@ -174,7 +174,7 @@ void Test(T type)
   // Defining what we need: the four eigenvectors of B nearest to 0.0.
   // A.MultOPv is the function that performs the product w <- OPv.
 
-  ARSymStdEig<T, SymMatrixB<T> > dprob(A.ncols(), 4, &A, &SymMatrixB<T>::MultMv, 0.0);
+  ARSymStdEig<T, SymMatrixB<T> > dprob(A.ncols(), 4, &A, &SymMatrixB<T>::MultOPv, 0.0);
 
   // Finding eigenvalues and eigenvectors.
 
