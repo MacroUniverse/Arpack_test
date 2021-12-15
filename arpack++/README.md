@@ -65,9 +65,9 @@ Additional features of this GitHub arpackpp package:
 
 ## TODO
 ## 
-- CMake: get rid of globbing and specify individual files, also add some testing
 - UMFPACK complex examples do not build (need update like sym) 
 - CHOLMOD complex examples not included (implement similar to real sym)
+- Distribution and package versions need to be added 
 - Update documentation (install) to cover more scenarios (APT, Homebrew)
 
 
@@ -169,7 +169,7 @@ For specific operations only, any of these:
    ARPACK distribution, so it is recommended to install BLAS and LAPACK
    before compiling the examples. Besides, you should use
    vendor-optimized versions of these libraries if they are available.
-   E.g. OpenBLAS is available via this GitHub repository (see also
+   E.g. OpenBLAS is available via this GitHub repository (see aslo
    install-openblas.sh):
 
    https://github.com/xianyi/OpenBLAS
@@ -211,14 +211,14 @@ For specific operations only, any of these:
    types are also described in the manual. Instructions on how to
    install the above mentioned libraries are given in the INSTALL.md
    file. Moreover, README files were include in many arpackpp
-   directories to give additional information about arpackpp files and
+   directories to give aditional information about arpackpp files and
    examples.
 
 ## Using arpackpp:
 ## 
    As a collection of class templates, arpackpp need not to be compiled.
    Because templates are defined in header (.h) files, no object (.o) or
-   library (.a) files have to be build, except those corresponding to
+   library (.a) files have to be built, except those corresponding to
    other libraries required by arpackpp (see Dependencies above).
    Arpackpp header files are included in the "include" directory and can
    be moved to another directory if desired. An option in the form
@@ -233,9 +233,7 @@ For specific operations only, any of these:
    arpackpp. Here, ARPACKPP_INC is the name of the directory that
    contains all arpackpp header files. Note, depending on what type of
    problem you want so solve, you need to also include the example
-   matrices and/or matprod directories (see examples). You can also use
-   `cmake` (see below) with `make install` to install all headers to your
-   system into a single directory.
+   matrices and/or matprod directories (see examples).
 
 
 ## Compiling and running arpackpp examples:
@@ -244,14 +242,14 @@ For specific operations only, any of these:
    all examples, including the ones that depend on SuperLU, do
 
    ```
-   $ mkdir ../arpackpp-build
-   $ cd ../arpackpp-build
-   $ cmake ../arpackpp -D SUPERLU=ON
-   $ make examples
+   $ mkdir build
+   $ cd build
+   $ cmake -D SUPERLU=ON
+   $ make 
    ```
 
    For this to work all dependencies need to be installed (either on the
-   system or in the external subdirectory). See INSTALL.md for details.
+   system or in the external subdirectory. See INSTALL.md for details.
    Regular Makefiles (in-source build) are also still supported.
 
 
@@ -259,12 +257,12 @@ For specific operations only, any of these:
 ## 
 ARPACK++ authors:
 
--  Francisco M. Gomes (chico AT ime.unicamp.br)
+-  Francisco M. Gomes (chico <at> ime.unicamp.br)
 
--  Danny Sorensen (LASTNAME AT caam.rice.edu)
+-  Danny Sorensen (<lastname> <at> caam.rice.edu)
 
 arpackpp (2.0.0 and above) authors:
 
--  Martin Reuter (LASTNAME AT mit.edu)
+-  Martin Reuter (<lastname> <at> mit.edu)
 
 

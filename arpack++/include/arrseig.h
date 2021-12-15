@@ -28,6 +28,10 @@
 #include "blas1c.h"
 
 
+// "New" handler.
+
+void MemoryOverflow() { throw ArpackError(ArpackError::MEMORY_OVERFLOW); }
+
 // ARrcStdEig class definition.
 
 template<class ARFLOAT, class ARTYPE>
@@ -832,6 +836,10 @@ DefineParameters(int np, int nevp, const std::string& whichp, int ncvp,
 
 {
 
+  // Providing a "new" handler.
+
+  std::set_new_handler ( MemoryOverflow );
+
   // Setting user defined parameters.
 
   try {
@@ -1067,7 +1075,6 @@ int ARrcStdEig<ARFLOAT, ARTYPE>::FindEigenvalues()
       ValAllocate();
       nconv = FindArnoldiBasis();
       rvec  = false;
-      HowMny = 'A';
       if (nconv>0) {
         Eupp();
         EuppError();

@@ -5,32 +5,27 @@ option(SUPERLU "Enable SUPERLU" OFF)
 option(UMFPACK "Enable UMFPACK" OFF)
 option(CHOLMOD "Enable CHOLMOD" OFF)
 
-add_custom_target (examples)
-
 function(examples list_name)
     foreach(l ${${list_name}})
         get_filename_component(lwe ${l} NAME_WE)
-        add_executable(${lwe} EXCLUDE_FROM_ALL ${l})
-        target_link_libraries(${lwe} ${ARPACK_LIB} ${LAPACK_LIBRARIES} ${GFORTRAN_LIB})
-        add_dependencies (examples ${lwe})
+        add_executable(${lwe} ${l})
+        target_link_libraries(${lwe} ${ARPACK_LIB} ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${GFORTRAN_LIB})
     endforeach()
 endfunction(examples)
 
 function(examplesslu list_name)
     foreach(l ${${list_name}})
         get_filename_component(lwe ${l} NAME_WE)
-        add_executable(${lwe} EXCLUDE_FROM_ALL ${l})
-        target_link_libraries(${lwe} ${SUPERLU_LIB} ${ARPACK_LIB} ${LAPACK_LIBRARIES} ${GFORTRAN_LIB})
-        add_dependencies (examples ${lwe})
+        add_executable(${lwe} ${l})
+        target_link_libraries(${lwe} ${SUPERLU_LIB} ${ARPACK_LIB} ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${GFORTRAN_LIB})
     endforeach()
 endfunction(examplesslu)
 
 function(examplesls list_name)
     foreach(l ${${list_name}})
         get_filename_component(lwe ${l} NAME_WE)
-        add_executable(${lwe} EXCLUDE_FROM_ALL ${l})
-        target_link_libraries(${lwe} ${ARPACK_LIB} ${SSPARSE_LIBS} ${LAPACK_LIBRARIES} ${GFORTRAN_LIB})
-        add_dependencies (examples ${lwe})
+        add_executable(${lwe} ${l})
+        target_link_libraries(${lwe} ${ARPACK_LIB} ${SSPARSE_LIBS} ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES} ${GFORTRAN_LIB})
     endforeach()
 endfunction(examplesls)
 
@@ -49,6 +44,9 @@ function(make_global_path invar cstr)
  endif()
 endfunction(make_global_path)
 
+find_package(BLAS REQUIRED)
+find_package(LAPACK REQUIRED)
+
 
 # Prefer static libraries:
 IF(WIN32)
@@ -58,93 +56,68 @@ ELSE(WIN32)
 ENDIF(WIN32)
 
 
-# Find LAPACK and BLAS
-# OPENBLAS or ( ( SystemOpenblas or BLAS) and LAPACK)
-## prefer local openblas
-find_library(OPENBLAS_LIB openblas PATHS external NO_DEFAULT_PATH)
+# find openblas (locally, optional)
+find_library(OPENBLAS_LIB openblas PATHS external/OpenBLAS/)
 IF (OPENBLAS_LIB)
-  make_global_path(OPENBLAS_LIB "OpenBLAS Library")
-  set(LAPACK_LIBRARIES ${OPENBLAS_LIB}) #local openblas has lapack build in
-ELSE()
-  find_library(OPENBLAS_LIB openblas PATH_SUFFIXES openblas-base)
-  IF (OPENBLAS_LIB)
-    find_library(LAPACK_LIBRARIES lapack)  #only add liblapack
-    IF (NOT LAPACK_LIBRARIES)
-      message( STATUS "LAPACK_LIBRARIES not found" )
-      SET(ABORT_CONFIG TRUE)    
-    ENDIF()
-    set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${OPENBLAS_LIB})    
-  ELSE()
-    message( STATUS "OPENBLAS_LIB not found, trying LAPACK/BLAS..." )
-    find_package(LAPACK REQUIRED)  # this will also find and add libblas
-  ENDIF()
-ENDIF()
-IF (OPENBLAS_LIB)
+  # if found, use it and make sure to include pthreads
+  set(BLAS_goto2_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/external/OpenBLAS/libopenblas.a  CACHE STRING "goto2blas library")
   find_package( Threads REQUIRED )
-  set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-ENDIF()
-message( STATUS "LAPACK_LIBRARIES: ${LAPACK_LIBRARIES}" )
+  make_global_path(OPENBLAS_LIB "OpenBLAS Library")
+  set(BLAS_LIBRARIES ${OPENBLAS_LIB} ${CMAKE_THREAD_LIBS_INIT})
+  set(LAPACK_LIBRARIES "")
+ENDIF(OPENBLAS_LIB)
 
 
-# Find libgfortran (static preferred) 
 IF(NOT WIN32)
-  # Query gfortran to get the libgfortran path
-  IF (CMAKE_Fortran_COMPILER)
-    EXECUTE_PROCESS(COMMAND ${CMAKE_Fortran_COMPILER} -print-file-name=libgfortran.a
-                    OUTPUT_VARIABLE _libgfortran_path
-                    OUTPUT_STRIP_TRAILING_WHITESPACE
-                   )
-    IF (NOT EXISTS ${_libgfortran_path})
-      EXECUTE_PROCESS(COMMAND ${CMAKE_Fortran_COMPILER} -print-file-name=libgfortran.so
-                      OUTPUT_VARIABLE _libgfortran_path
-                      OUTPUT_STRIP_TRAILING_WHITESPACE
-                     )
-    ENDIF ()
-  ENDIF()
+      # Query gfortran to get the libgfortran.so path
+#      FIND_PROGRAM(_GFORTRAN_EXECUTABLE NAMES gfortran)
+      FIND_PROGRAM(_GFORTRAN_EXECUTABLE NAMES gfortran gfortran-mp-4.9)
+      IF(_GFORTRAN_EXECUTABLE)
+        EXECUTE_PROCESS(COMMAND ${_GFORTRAN_EXECUTABLE} -print-file-name=libgfortran.a
+                        OUTPUT_VARIABLE _libgfortran_path
+                        OUTPUT_STRIP_TRAILING_WHITESPACE
+                       )
+      ENDIF()
+      unset(_GFORTRAN_EXECUTABLE CACHE)
 
-  IF(EXISTS ${_libgfortran_path})
-    get_filename_component(GFORTRAN_PATH ${_libgfortran_path} PATH)
-    find_library(GFORTRAN_LIB gfortran PATHS ${GFORTRAN_PATH})
-  ELSE()
-    # if libgfortran wasn't found at this point, the installation is probably broken
-    # Let's try to find the library nonetheless.
-    FIND_LIBRARY(GFORTRAN_LIB gfortran)
-  ENDIF()
-  IF (NOT GFORTRAN_LIB)
-    MESSAGE(STATUS "gfortran is required but it could not be found")
-    SET(ABORT_CONFIG TRUE)
-  ENDIF (NOT GFORTRAN_LIB)
-
-  # we may need libquadmath.a , so add it if it is found
-  find_library(QUADMATH_LIB quadmath PATHS ${GFORTRAN_PATH})
-  IF (QUADMATH_LIB)
-    list (APPEND GFORTRAN_LIB ${QUADMATH_LIB})
-  ENDIF (QUADMATH_LIB)
-
-  IF (APPLE) 
-    # also we need -lgcc_ext.10.5 on (most) MAC
+      IF(EXISTS ${_libgfortran_path})
+        get_filename_component(GFORTRAN_PATH ${_libgfortran_path} PATH)
+#        SET(GFORTRAN_LIB ${_libgfortran_path} CACHE STRING "gfortran library")
+        find_library(GFORTRAN_LIB gfortran PATHS ${GFORTRAN_PATH})
+      ELSE()
+        # if libgfortran wasn't found at this point, the installation is probably broken
+        # Let's try to find the library nonetheless.
+        FIND_LIBRARY(GFORTRAN_LIB gfortran)
+      ENDIF()
+      IF (NOT GFORTRAN_LIB)
+        MESSAGE(STATUS "gfortran is required but could not be found")
+        SET(ABORT_CONFIG TRUE)
+      ENDIF (NOT GFORTRAN_LIB)
+  IF (APPLE)
+    # also need libquadmath.a and -lgcc_ext.10.5
+    find_library(QUADMATH_LIB quadmath PATHS ${GFORTRAN_PATH})
+    IF (NOT QUADMATH_LIB)
+      MESSAGE(STATUS "quadmath is required on MAC but could not be found")
+      SET(ABORT_CONFIG TRUE)
+    ENDIF (NOT QUADMATH_LIB)
     find_library(GCC_EXT_LIB gcc_ext.10.5 PATHS ${GFORTRAN_PATH})
-    IF (GCC_EXT_LIB)
-      list (APPEND GFORTRAN_LIB ${GCC_EXT_LIB})
-    ELSE ()
+    IF (NOT GCC_EXT_LIB)
       MESSAGE(STATUS "gcc_ext is required on MAC but could not be found")
       SET(ABORT_CONFIG TRUE)
-    ENDIF ()
+    ENDIF (NOT GCC_EXT_LIB)
+    SET (GFORTRAN_LIB ${GFORTRAN_LIB} ${QUADMATH_LIB} ${GCC_EXT_LIB})
   ENDIF(APPLE)
 
 ENDIF(NOT WIN32)
 
 
 # ARPACK
-find_library (ARPACK_LIB NAMES arpack PATHS external external/ARPACK)
-
-
+find_library(ARPACK_LIB  libarpack.a PATHS external external/ARPACK )
 IF (NOT ARPACK_LIB)
-  MESSAGE(SEND_ERROR "libarpack is required but could not be found")
+  MESSAGE(STATUS "libarpack is required but could not be found")
   SET(ABORT_CONFIG TRUE)
 ENDIF()
 make_global_path(ARPACK_LIB "ARPACK Fortran Library")
-message( STATUS "ARPACK_LIB found: ${ARPACK_LIB}" )
 
 # SUPERLU
 if (SUPERLU)
@@ -162,79 +135,31 @@ if (SUPERLU)
     SET(ABORT_CONFIG TRUE)
   ENDIF()
   make_global_path(SUPERLU_LIB "SUPERLU Library")
+  
+  #set(SUPERLU_COMPILE_FLAGS "-DSUPERLU3")
   include_directories( ${SUPERLU_INC} )
-  message( STATUS "SUPERLU_LIB found: ${SUPERLU_LIB}" ) 
 endif()
 
-# Suitesparse 
 if (UMFPACK OR CHOLMOD)
   # Suitesparse CHOLMOD
   find_path(SUITESPARSE_DIR SuiteSparse_config/SuiteSparse_config.h "external/SuiteSparse")
   IF (NOT SUITESPARSE_DIR)
-    # nothing in external, search globally for libraries and headers
-    find_library(CHOLMOD_LIB libcholmod.a)
-    find_library(COLAMD_LIB libcolamd.a)
-    find_library(CCOLAMD_LIB libccolamd.a)
-    find_library(METIS_LIB libmetis.a)
-    IF (NOT METIS_LIB)
-      find_library(METIS_LIB libmetis.dylib)
-    ENDIF()
-    IF (NOT METIS_LIB)
-      find_library(METIS_LIB libmetis.so)
-    ENDIF()
-    find_library(CAMD_LIB libcamd.a)
-    find_library(AMD_LIB libamd.a)
-
-    # Suitesparse UMFPACK
-    find_library(UMFPACK_LIB libumfpack.a)
-    find_library(SUITESPARSE_LIB libsuitesparseconfig.a)
-   
-    FIND_PATH( CHOLMOD_INCLUDE_DIR cholmod.h
-        	      PATHS /usr/local/include 
-        	      /usr/include 
-        	      /usr/include/suitesparse/ 
-        	      ${CMAKE_SOURCE_DIR}/MacOS/Libs/cholmod
-              	PATH_SUFFIXES cholmod/ CHOLMOD/ )
-    IF (NOT CHOLMOD_INCLUDE_DIR)
-      MESSAGE(STATUS "SuiteSparse chomod.h is required but could not be found")
-      SET(ABORT_CONFIG TRUE)
-    ENDIF()
-
-    include_directories(
-      ${CHOLMOD_INCLUDE_DIR}
-    )
-    
-    
-  ELSE (NOT SUITESPARSE_DIR)
-    # found suite sparse locally in external dir
-    make_global_path(SUITESPARSE_DIR "SuiteSparse Directory")
-    message( STATUS "SUITESPARSE_DIR found: ${SUITESPARSE_DIR}" )
-
-    find_library(CHOLMOD_LIB libcholmod.a ${SUITESPARSE_DIR}/CHOLMOD/Lib  )
-    find_library(COLAMD_LIB libcolamd.a ${SUITESPARSE_DIR}/COLAMD/Lib  )
-    find_library(CCOLAMD_LIB libccolamd.a ${SUITESPARSE_DIR}/CCOLAMD/Lib  )
-    find_library(METIS_LIB libmetis.a ${SUITESPARSE_DIR}/metis-4.0 )
-    IF (NOT METIS_LIB)
-      find_library(METIS_LIB libmetis.dylib)
-    ENDIF()
-    IF (NOT METIS_LIB)
-      find_library(METIS_LIB libmetis.so)
-    ENDIF()
-    find_library(CAMD_LIB libcamd.a ${SUITESPARSE_DIR}/CAMD/Lib )
-    find_library(AMD_LIB libamd.a ${SUITESPARSE_DIR}/AMD/Lib )
-
-    # Suitesparse UMFPACK
-    find_library(UMFPACK_LIB libumfpack.a ${SUITESPARSE_DIR}/UMFPACK/Lib  )
-    find_library(SUITESPARSE_LIB libsuitesparseconfig.a ${SUITESPARSE_DIR}/SuiteSparse_config )
-
-    include_directories(
-      ${SUITESPARSE_DIR}/CHOLMOD/Include
-      ${SUITESPARSE_DIR}/SuiteSparse_config
-    )
-
-
+    MESSAGE(STATUS "SuiteSparse Directory is required but could not be found")
+    SET(ABORT_CONFIG TRUE)
   ENDIF()
-  
+  make_global_path(SUITESPARSE_DIR "SuiteSparse Directory")
+
+  find_library(CHOLMOD_LIB libcholmod.a ${SUITESPARSE_DIR}/CHOLMOD/Lib  )
+  find_library(COLAMD_LIB libcolamd.a ${SUITESPARSE_DIR}/COLAMD/Lib  )
+  find_library(CCOLAMD_LIB libccolamd.a ${SUITESPARSE_DIR}/CCOLAMD/Lib  )
+  find_library(METIS_LIB libmetis.a ${SUITESPARSE_DIR}/metis-4.0 )
+  find_library(CAMD_LIB libcamd.a ${SUITESPARSE_DIR}/CAMD/Lib )
+  find_library(AMD_LIB libamd.a ${SUITESPARSE_DIR}/AMD/Lib )
+
+  # UMFPACK
+  find_library(UMFPACK_LIB libumfpack.a ${SUITESPARSE_DIR}/UMFPACK/Lib  )
+  find_library(SUITESPARSE_LIB libsuitesparseconfig.a ${SUITESPARSE_DIR}/SuiteSparse_config )
+
   set(SSPARSE_LIBS
     ${UMFPACK_LIB}
     ${CHOLMOD_LIB}
@@ -251,6 +176,10 @@ if (UMFPACK OR CHOLMOD)
     set (SSPARSE_LIBS ${SSPARSE_LIBS} -lrt)
   endif()
   
+  include_directories(
+    ${SUITESPARSE_DIR}/CHOLMOD/Include
+    ${SUITESPARSE_DIR}/SuiteSparse_config
+  )
 
 endif()
 
@@ -266,12 +195,6 @@ include_directories(
   examples/areig
   
 )
-
-file (GLOB HEADERS "include/*.h")
-install (FILES ${HEADERS} DESTINATION include/arpackpp)
-
-file (GLOB_RECURSE EXAMPLE_HEADERS "examples/*.h")
-install (FILES ${EXAMPLE_HEADERS} DESTINATION include/arpackpp)
 
 # examples product
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/examples/product/)
@@ -343,7 +266,7 @@ if (SUPERLU)
   file(GLOB harwell_sym examples/harwell/sym/*.cc)
   examplesslu(harwell_sym)
   # also copy binaries
-  add_custom_target(harwellbin
+  add_custom_target(harwellbin ALL
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/examples/harwell/complex/mhd1280a.cua.gz" ${CMAKE_BINARY_DIR}/examples/harwell/ 
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/examples/harwell/complex/mhd1280b.cua.gz" ${CMAKE_BINARY_DIR}/examples/harwell/ 
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/examples/harwell/nonsym/mhd416a.rua" ${CMAKE_BINARY_DIR}/examples/harwell/ 
@@ -358,7 +281,6 @@ if (SUPERLU)
       examples/harwell/sym/lund_a.rsa
       examples/harwell/sym/lund_b.rsa
   )
-  add_dependencies(examples harwellbin)
 endif()
 
 if (UMFPACK)
@@ -382,10 +304,3 @@ if (CHOLMOD)
   examplesls(cholmod_sym)
 
 endif()
-
-add_custom_target( Message ALL
-    COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan "Run either \\\"make examples\\\" or \\\"make install\\\"."
-    COMMENT "Header Library: Nothing to compile!" )
-
-add_library(arpackpp INTERFACE)
-target_include_directories(arpackpp INTERFACE include)

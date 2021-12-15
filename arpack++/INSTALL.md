@@ -3,22 +3,7 @@
 The arpackpp library consists of header files and can be
 installed without compiling. However, to compile the examples
 or a program that includes these headers, it is necessary to
-install some libraries first.
-
-## Install Headers Only
-
-  Installing the headers into the default include/arpackpp
-  directory can be done via `cmake`, for example:
-  
-  ```
-  $ mkdir build
-  $ cd build
-  $ cmake ../
-  $ make install
-  ```
-
-  Compiling the examples can be done without installing the
-  headers, but requires a few libraries ...
+install some libraries.
 
 ## System Libraries: GFORTRAN, BLAS, LAPACK, ARPACK
   
@@ -30,7 +15,7 @@ install some libraries first.
   $ sudo apt-get install -y gfortran libopenblas-dev liblapack-dev libarpack2-dev
   ```
     
-  Currently there is no package for SuperLU 5.* so you need to 
+  Currently there is no package for SuperLU 5.0 so you need to 
   install that separately (see below).
 
 ## BLAS:
@@ -79,25 +64,20 @@ install some libraries first.
   the BLAS files, the user must take some care while installing this 
   libraries to avoid code duplication.
 
-## SUPERLU (version 5.2.1):
+## SUPERLU (version 5.0):
 
   When installing SuperLU, the user must specify what BLAS library
-  will be used when compiling arpackpp examples or derivatives.
+  is used in the "make.inc" file (when using the old Makefiles).
   The script 
   
   ```
   $ ./install-superlu.sh
   ```
-  downloads and installs SuperLU
-  from crd-legacy.lbl.gov/~xiaoye/SuperLU/superlu_VERSION.tar.gz
-  into the external directory. By default it will search for BLAS 
-  in the external directory. You can pass the environment
-  variable BLAS=SYSTEM to the install script to tell it to use the
-  system BLAS when building SuperLU:
-  
-  ```
-  $ export BLAS="SYSTEM" &&  ./install-superlu.sh
-  ```
+  downloads and installs SuperLU5.0
+  from http://crd-legacy.lbl.gov/~xiaoye/SuperLU/superlu_5.0.tar.gz
+  into the external directory. It will search for BLAS in the 
+  external directory. You can pass the environment
+  variable BLAS=SYSTEM to the install script to use the system BLAS.
   Note, you should use the same BLAS for compiling SuperLU, that you
   will use when compiling the arpackpp examples (or your own code).
 
@@ -117,14 +97,14 @@ install some libraries first.
 
 ## Compile Examples (cmake):
   
-  Arpackpp supports `cmake` for the compilation of the examples. To build
+  Arpackpp supports cmake for the compilation of the examples. To build
   some examples, including the ones that depend on SuperLU, do
   
   ```
   $ mkdir build
   $ cd build
   $ cmake -D SUPERLU=ON ..
-  $ make examples
+  $ make
   ```
   
   For this to work all dependencies need to be installed (either on the
@@ -142,7 +122,7 @@ install some libraries first.
   $ cmake -D CHOLMOD=ON -D UMFPACK=ON ../
   ```
   
-  You can also use `ccmake` instead of `cmake` to see all variables and
+  You can also use ccmake instead of cmake to see all variables and
   manually overwrite specific paths to ensure the right libraries
   are being used.
   
@@ -166,19 +146,19 @@ install some libraries first.
 ## Compiler-dependent instructions
 
    These compiler-dependent instructions were supplied originally, it
-   is unclear whether they are still relevant:
+   is unclear if they are still relevant:
 
    Some compiler-dependent functions and data types used by arpack++ were
    grouped in the file include/arch.h. Thus, this file should be changed
    to reflect the characteristics of your system. Because at the present
    time the library was only compiled with the GNU g++ compiler and
    tested in a SUN SparcStation, further work must be done in order to
-   allow the use of arpack++ in other environments.
+   allow the use of ARPACK++ in other environments.
 
    Moreover, arpack++ also includes a file, include/arcomp,h, that contains
    the definition of a class template called arcomplex, created to emulate
    the g++ complex class when other compilers are being used. arcomplex is
-   the only complex type referenced by other arpack++ files, so you must
+   the only complex type referenced by other ARPACK++ files, so you must
    change the definition of this class in order to work with complex
    numbers if g++ (or CC) is not being used.
 
@@ -186,7 +166,7 @@ install some libraries first.
 ## UMFPACK instructions
 
   The following details on UMFPACK were supplied originally. It is
-  unclear whether they are still relevant:
+  unclear if they are still relevant:
   
   Presently, the UMFPACK library does not allow the user to supply
   matrices in compress sparse column (CSC) format, but only matrices 

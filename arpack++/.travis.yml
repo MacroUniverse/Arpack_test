@@ -1,11 +1,8 @@
+sudo: false
 
 language: cpp
 
 compiler: gcc
-
-cache:
-  - apt
-  - ccache
 
 os:
   - linux
@@ -18,28 +15,22 @@ addons:
       - libopenblas-dev
       - liblapack-dev
       - libarpack2-dev
-      - libmetis-dev
-      - libsuitesparse-dev
-    update: true
-  homebrew:
-    packages:
-      - arpack
-      - superlu
-      - suite-sparse
-    update: true
 
 env:
   - SUPERLU=ON BLAS=SYSTEM CHOLMOD=ON UMFPACK=ON
 
+before_install:
+  # OSX
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew update ; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew install homebrew/science/arpack homebrew/science/superlu ; fi
+
 before_script:
-  # linux needs SuperLU from source (APT on xenial libsuperlu-dev is still 4.3)
+  # linux needs SuperLU5.0 from source (APT libsuperlu-dev is still 4.3)
   - if [ "$TRAVIS_OS_NAME" = "linux" -a "$SUPERLU" = "ON" ]; then ./install-superlu.sh ; fi
-#  - if [ "$CHOLMOD" = "ON" -o "$UMFPACK" = "ON" ]; then ./install-suitesparse.sh ; fi
-#  - if [[ ( "$TRAVIS_OS_NAME" = "linux" ) && ( "$CHOLMOD" = "ON" || "$UMFPACK" = "ON" ) ]]; then ./install-suitesparse.sh ; fi
+  - if [ "$CHOLMOD" = "ON" -o "$UMFPACK" = "ON" ]; then ./install-suitesparse.sh ; fi
   - mkdir build
-  - cd build
-  - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DSUPERLU=$SUPERLU -DUMFPACK=$UMFPACK -DCHOLMOD=$CHOLMOD ..
+  - cd build 
+  - cmake -DSUPERLU=$SUPERLU -DUMFPACK=$UMFPACL -DSUPERLU=$CHOLMOD ..
 
 script:
-  - make install
-  - make examples -j2
+  - make
