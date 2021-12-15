@@ -17,7 +17,8 @@
 #ifndef ARLNSPEN_H
 #define ARLNSPEN_H
 
-#include <stddef.h>
+#include <cstddef>
+
 #include "arch.h"
 #include "arerror.h"
 #include "blas1c.h"
@@ -41,6 +42,7 @@ class ARluNonSymPencil
   ARluNonSymMatrix<ARTYPE, ARFLOAT>* B;
   SuperMatrix                        L;
   SuperMatrix                        U;
+  SuperLUStat_t stat;
 
   virtual void Copy(const ARluNonSymPencil& other);
 
@@ -142,7 +144,7 @@ void ARluNonSymPencil<ARTYPE, ARFLOAT>::ClearMem()
   if (factored) {
     Destroy_SuperNode_Matrix(&L);
     Destroy_CompCol_Matrix(&U);
-    StatFree();
+    StatFree(&stat);
     delete[] permc;
     delete[] permr;
     permc = NULL;
@@ -379,9 +381,23 @@ void ARluNonSymPencil<ARTYPE, ARFLOAT>::FactorAsB(ARTYPE sigma)
 
   // Setting default values for gstrf parameters.
 
-  ARFLOAT drop_tol        = 0.0;
   int   panel_size      = sp_ienv(1);
   int   relax           = sp_ienv(2);
+  superlu_options_t options;
+  /* Set the default input options:
+  options.Fact = DOFACT;
+  options.Equil = YES;
+  options.ColPerm = COLAMD;
+  options.DiagPivotThresh = 1.0;
+  options.Trans = NOTRANS;
+  options.IterRefine = NOREFINE;
+  options.SymmetricMode = NO;
+  options.PivotGrowth = NO;
+  options.ConditionNumber = NO;
+  options.PrintStat = YES;
+  */
+  set_default_options(&options);
+  options.DiagPivotThresh = A->threshold;
 
   // Defining A and B format.
 
@@ -395,7 +411,7 @@ void ARluNonSymPencil<ARTYPE, ARFLOAT>::FactorAsB(ARTYPE sigma)
   pcoli = new int[A->ncols()+1];
   asb   = new ARTYPE[nnzi];
   Create_CompCol_Matrix(&AsB, A->nrows(), A->ncols(), nnzi, asb,
-                        irowi, pcoli, NC, GE);
+                        irowi, pcoli, SLU_NC, SLU_GE);
 
   // Subtracting sigma*B from A and storing the result on AsB.
 
@@ -410,7 +426,9 @@ void ARluNonSymPencil<ARTYPE, ARFLOAT>::FactorAsB(ARTYPE sigma)
 
   // Defining LUStat.
 
-  StatInit(panel_size, relax);
+//  StatInit(panel_size, relax);
+    SuperLUStat_t stat;
+    StatInit(&stat);
 
   // Defining the column permutation of matrix AsB
   // (using minimum degree ordering on AsB'*AsB).
@@ -420,12 +438,15 @@ void ARluNonSymPencil<ARTYPE, ARFLOAT>::FactorAsB(ARTYPE sigma)
   // Permuting columns of AsB and
   // creating the elimination tree of AsB'*AsB.
 
-  sp_preorder("N", &AsB, permc, etree, &AC);
+//  sp_preorder("N", &AsB, permc, etree, &AC);
+  sp_preorder(&options, &AsB, permc, etree, &AC);
 
   // Decomposing AsB.
 
-  gstrf("N",&AC, A->threshold, drop_tol, relax, panel_size, etree,
-        NULL, 0, permr, permc, &L, &U, &info);
+//  gstrf("N",&AC, A->threshold, drop_tol, relax, panel_size, etree,
+//        NULL, 0, permr, permc, &L, &U, &info);
+  gstrf(&options, &AC, relax, panel_size, etree,
+        NULL, 0, permc, permr, &L, &U, &stat, &info);
 
   // Deleting AC, AsB and etree.
 
@@ -492,9 +513,24 @@ FactorAsB(ARFLOAT sigmaR, ARFLOAT sigmaI, char partp)
 
   // Setting default values for gstrf parameters.
 
-  ARFLOAT drop_tol      = 0.0;
   int   panel_size      = sp_ienv(1);
   int   relax           = sp_ienv(2);
+  superlu_options_t options;
+  /* Set the default input options:
+  options.Fact = DOFACT;
+  options.Equil = YES;
+  options.ColPerm = COLAMD;
+  options.DiagPivotThresh = 1.0;
+  options.Trans = NOTRANS;
+  options.IterRefine = NOREFINE;
+  options.SymmetricMode = NO;
+  options.PivotGrowth = NO;
+  options.ConditionNumber = NO;
+  options.PrintStat = YES;
+  */
+  set_default_options(&options);
+  options.DiagPivotThresh = A->threshold;
+
 
   // Defining A and B format.
 
@@ -509,7 +545,7 @@ FactorAsB(ARFLOAT sigmaR, ARFLOAT sigmaI, char partp)
   pcoli = new int[A->ncols()+1];
   asb   = new arcomplex<ARFLOAT>[nnzi];
   Create_CompCol_Matrix(&AsB, A->nrows(), A->ncols(), nnzi, asb,
-                        irowi, pcoli, NC, GE);
+                        irowi, pcoli, SLU_NC, SLU_GE);
 
   // Subtracting sigma*B from A and storing the result on AsB.
 
@@ -524,7 +560,9 @@ FactorAsB(ARFLOAT sigmaR, ARFLOAT sigmaI, char partp)
 
   // Defining LUStat.
 
-  StatInit(panel_size, relax);
+//  StatInit(panel_size, relax);
+  SuperLUStat_t stat;
+  StatInit(&stat);
 
   // Defining the column permutation of matrix AsB
   // (using minimum degree ordering on AsB'*AsB).
@@ -534,12 +572,15 @@ FactorAsB(ARFLOAT sigmaR, ARFLOAT sigmaI, char partp)
   // Permuting columns of AsB and
   // creating the elimination tree of AsB'*AsB.
 
-  sp_preorder("N", &AsB, permc, etree, &AC);
+  //sp_preorder("N", &AsB, permc, etree, &AC);
+  sp_preorder(&options, &AsB, permc, etree, &AC);
 
   // Decomposing AsB.
 
-  gstrf("N",&AC, A->threshold, drop_tol, relax, panel_size, etree, NULL,
-        0, permr, permc, &L, &U, &info);
+//  gstrf("N",&AC, A->threshold, drop_tol, relax, panel_size, etree, NULL,
+//        0, permr, permc, &L, &U, &info);
+  gstrf(&options, &AC, relax, panel_size, etree,
+        NULL, 0, permc, permr, &L, &U, &stat, &info);
 
   // Deleting AC, AsB and etree.
 
@@ -600,8 +641,12 @@ MultInvAsBv(arcomplex<ARFLOAT>* v, arcomplex<ARFLOAT>* w)
   SuperMatrix RHS;
 
   copy(A->nrows(), v, 1, w, 1);
-  Create_Dense_Matrix(&RHS, A->nrows(), 1, w, A->nrows(), DN, GE);
-  gstrs("N", &L, &U, permr, permc, &RHS, &info);
+  Create_Dense_Matrix(&RHS, A->nrows(), 1, w, A->nrows(), SLU_DN, SLU_GE);
+//  gstrs("N", &L, &U, permr, permc, &RHS, &info);
+  trans_t trans = NOTRANS;
+  StatInit(&stat);
+
+  gstrs(trans, &L, &U, permc, permr, &RHS, &stat, &info);
 
   Destroy_SuperMatrix_Store(&RHS); // delete RHS.Store;
 
@@ -629,8 +674,11 @@ void ARluNonSymPencil<ARTYPE, ARFLOAT>::MultInvAsBv(ARFLOAT* v, ARFLOAT* w)
   if (part == 'N') {    // shift is real.
 
     copy(A->nrows(), v, 1, w, 1);
-    Create_Dense_Matrix(&RHS, A->nrows(), 1, w, A->nrows(), DN, GE);
-    gstrs("N", &L, &U, permr, permc, &RHS, &info);
+    Create_Dense_Matrix(&RHS, A->nrows(), 1, w, A->nrows(), SLU_DN, SLU_GE);
+    //gstrs("N", &L, &U, permr, permc, &RHS, &info);
+    trans_t trans = NOTRANS;
+    StatInit(&stat);
+    gstrs(trans, &L, &U, permc, permr, &RHS, &stat, &info);
 
   }
   else {                // shift is complex.
@@ -641,8 +689,12 @@ void ARluNonSymPencil<ARTYPE, ARFLOAT>::MultInvAsBv(ARFLOAT* v, ARFLOAT* w)
     arcomplex<ARFLOAT> *tv = new arcomplex<ARFLOAT>[A->ncols()];
 
     for (i=0; i!=A->ncols(); i++) tv[i] = arcomplex<ARFLOAT>(v[i],0.0);
-    Create_Dense_Matrix(&RHS, A->ncols(), 1, tv, A->ncols(), DN, GE);
-    gstrs("N", &L, &U, permr, permc, &RHS, &info);
+    Create_Dense_Matrix(&RHS, A->ncols(), 1, tv, A->ncols(), SLU_DN, SLU_GE);
+    //gstrs("N", &L, &U, permr, permc, &RHS, &info);
+    trans_t trans = NOTRANS;
+    StatInit(&stat);
+    gstrs(trans, &L, &U, permc, permr, &RHS, &stat, &info);
+
 
     if (part=='I') {
       for (i=0; i!=A->ncols(); i++) w[i] = imag(tv[i]);
